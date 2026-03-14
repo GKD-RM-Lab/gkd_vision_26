@@ -30,7 +30,7 @@ Eigen::Quaterniond read_q(const std::string & q_path)
   std::ifstream q_file(q_path);
   double w, x, y, z;
   q_file >> w >> x >> y >> z;
-  return {w, x, y, z};
+  return Eigen::Quaterniond(w, x, y, z).normalized();
 }
 
 void load(
@@ -101,8 +101,12 @@ void load(
     cv::eigen2cv(R_gimbal2world, R_gimbal2world_cv);
     cv::Mat rvec, tvec;
     auto centers_3d_ = centers_3d(pattern_size, center_distance_mm);
-    cv::solvePnP(
+    auto success_pnp = cv::solvePnP(
       centers_3d_, centers_2d, camera_matrix, distort_coeffs, rvec, tvec, false, cv::SOLVEPNP_IPPE);
+    if (!success_pnp) {
+      fmt::print("[failure] solvePnP failed: {}\n", img_path);
+      continue;
+    }
 
     // 记录所需的数据
     R_gimbal2world_list.emplace_back(R_gimbal2world_cv);
@@ -157,6 +161,10 @@ int main(int argc, char * argv[])
   load(
     input_folder, config_path, R_gimbal2imubody_data, R_gimbal2world_list, t_gimbal2world_list,
     rvecs, tvecs);
+  if (R_gimbal2world_list.size() < 3) {
+    fmt::print("有效标定样本不足，至少需要 3 组，当前只有 {}\n", R_gimbal2world_list.size());
+    return 1;
+  }
 
   // 手眼标定
   cv::Mat R_camera2gimbal, t_camera2gimbal;

@@ -96,7 +96,8 @@ void GKDControl::initialize_udp_reception()
       Eigen::Quaterniond q(tools::rotation_matrix(euler));
       const auto now = std::chrono::steady_clock::now();
       // Protocol: 1 means enemy is red, 0 means enemy is blue.
-      const auto enemy_color = current.red ? auto_aim::red : auto_aim::blue;
+      const auto enemy_color =
+        current.red ? auto_aim::Color::red : auto_aim::Color::blue;
       queue_.push({q.normalized(), now});
       color_queue_.push({enemy_color, now});
 

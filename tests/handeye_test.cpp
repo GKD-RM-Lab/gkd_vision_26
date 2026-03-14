@@ -56,7 +56,7 @@ int main(int argc, char * argv[])
   }
   while (!exiter.exit()) {
     camera.read(img, t);
-    q = gkdcontrol.imu_at(t - 1ms * delay);
+    q = gkdcontrol.imu_at(t - std::chrono::milliseconds(delay));
     solver.set_R_gimbal2world(q);
     cv::Mat result = img.clone();
     std::vector<cv::Point2f> projectedPoints = solver.world2pixel(points);

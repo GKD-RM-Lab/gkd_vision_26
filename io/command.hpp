@@ -9,7 +9,7 @@ struct Command
   bool shoot;
   double yaw;
   double pitch;
-  double horizon_distance = 0;
+  double horizon_distance = 0;  //无人机专有
 };
 
 }  // namespace io

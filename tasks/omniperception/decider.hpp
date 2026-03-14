@@ -20,7 +20,6 @@ class Decider
 {
 public:
   Decider(const std::string & config_path);
-  void set_enemy_color(auto_aim::Color enemy_color);
 
   io::Command decide(
     auto_aim::YOLO & yolo, const Eigen::Vector3d & gimbal_pos, io::USBCamera & usbcam1,
@@ -57,7 +56,6 @@ private:
   int count_;
 
   auto_aim::Color enemy_color_;
-  bool has_enemy_color_;
   auto_aim::YOLO detector_;
   std::vector<auto_aim::ArmorName> invincible_armor_;  //无敌状态机器人编号,英雄为1，哨兵为6
 

@@ -9,28 +9,21 @@
 
 namespace auto_aim
 {
-Tracker::Tracker(const std::string & config_path, Solver & solver)
+Tracker::Tracker(const std::string & config_path, Solver & solver, Color & enemy_color)
 : solver_{solver},
-  enemy_color_{Color::blue},
   detect_count_(0),
   temp_lost_count_(0),
+  enemy_color_(enemy_color),
   state_{"lost"},
   pre_state_{"lost"},
   last_timestamp_(std::chrono::steady_clock::now()),
   omni_target_priority_{ArmorPriority::fifth}
 {
   auto yaml = YAML::LoadFile(config_path);
-  enemy_color_ =
-    (yaml["enemy_color"].as<std::string>() == "red") ? Color::red : Color::blue;
+  //enemy_color_ = (yaml["enemy_color"].as<std::string>() == "red") ? Color::red : Color::blue;
   min_detect_count_ = yaml["min_detect_count"].as<int>();
   max_temp_lost_count_ = yaml["max_temp_lost_count"].as<int>();
   outpost_max_temp_lost_count_ = yaml["outpost_max_temp_lost_count"].as<int>();
-  process_v1_ = yaml["process_v1"].IsDefined() ? yaml["process_v1"].as<double>() : 100.0;
-  process_v2_ = yaml["process_v2"].IsDefined() ? yaml["process_v2"].as<double>() : 400.0;
-  outpost_process_v1_ =
-    yaml["outpost_process_v1"].IsDefined() ? yaml["outpost_process_v1"].as<double>() : 10.0;
-  outpost_process_v2_ =
-    yaml["outpost_process_v2"].IsDefined() ? yaml["outpost_process_v2"].as<double>() : 0.1;
   normal_temp_lost_count_ = max_temp_lost_count_;
 }
 
@@ -47,9 +40,8 @@ std::list<Target> Tracker::track(
     tools::logger()->warn("[Tracker] Large dt: {:.3f}s", dt);
     state_ = "lost";
   }
-  if (use_enemy_color) {
-    armors.remove_if([&](const auto_aim::Armor & a) { return a.color != enemy_color_; });
-  }
+  // 过滤掉非我方装甲板
+  armors.remove_if([&](const auto_aim::Armor & a) { return a.color != enemy_color_; });
 
   // 过滤前哨站顶部装甲板
   // armors.remove_if([this](const auto_aim::Armor & a) {
@@ -121,9 +113,6 @@ std::tuple<omniperception::DetectionResult, std::list<Target>> Tracker::track(
   if (state_ != "lost" && dt > 0.1) {
     tools::logger()->warn("[Tracker] Large dt: {:.3f}s", dt);
     state_ = "lost";
-  }
-  if (use_enemy_color) {
-    armors.remove_if([&](const auto_aim::Armor & a) { return a.color != enemy_color_; });
   }
 
   // 优先选择靠近图像中心的装甲板
@@ -254,28 +243,22 @@ bool Tracker::set_target(std::list<Armor> & armors, std::chrono::steady_clock::t
 
   if (is_balance) {
     Eigen::VectorXd P0_dig{{1, 64, 1, 64, 1, 64, 0.4, 100, 1, 1, 1}};
-    target_ = Target(
-      armor, t, 0.2, 2, P0_dig, process_v1_, process_v2_, outpost_process_v1_, outpost_process_v2_);
+    target_ = Target(armor, t, 0.2, 2, P0_dig);
   }
 
   else if (armor.name == ArmorName::outpost) {
     Eigen::VectorXd P0_dig{{1, 64, 1, 64, 1, 81, 0.4, 100, 1e-4, 0, 0}};
-    target_ = Target(
-      armor, t, 0.2765, 3, P0_dig, process_v1_, process_v2_, outpost_process_v1_,
-      outpost_process_v2_);
+    target_ = Target(armor, t, 0.2765, 3, P0_dig);
   }
 
   else if (armor.name == ArmorName::base) {
     Eigen::VectorXd P0_dig{{1, 64, 1, 64, 1, 64, 0.4, 100, 1e-4, 0, 0}};
-    target_ = Target(
-      armor, t, 0.3205, 3, P0_dig, process_v1_, process_v2_, outpost_process_v1_,
-      outpost_process_v2_);
+    target_ = Target(armor, t, 0.3205, 3, P0_dig);
   }
 
   else {
     Eigen::VectorXd P0_dig{{1, 64, 1, 64, 1, 64, 0.4, 100, 1, 1, 1}};
-    target_ = Target(
-      armor, t, 0.2, 4, P0_dig, process_v1_, process_v2_, outpost_process_v1_, outpost_process_v2_);
+    target_ = Target(armor, t, 0.2, 4, P0_dig);
   }
 
   return true;

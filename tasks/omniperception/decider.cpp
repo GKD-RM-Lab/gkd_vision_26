@@ -1,19 +1,16 @@
 #include "decider.hpp"
 
+#include <yaml-cpp/yaml.h>
+
 #include <filesystem>
 #include <opencv2/opencv.hpp>
-#include <yaml-cpp/yaml.h>
 
 #include "tools/logger.hpp"
 #include "tools/math_tools.hpp"
 
 namespace omniperception
 {
-Decider::Decider(const std::string & config_path)
-: count_(0),
-  enemy_color_{auto_aim::Color::blue},
-  has_enemy_color_{false},
-  detector_(config_path)
+Decider::Decider(const std::string & config_path) : detector_(config_path), count_(0)
 {
   auto yaml = YAML::LoadFile(config_path);
   img_width_ = yaml["image_width"].as<double>();
@@ -22,13 +19,9 @@ Decider::Decider(const std::string & config_path)
   fov_v_ = yaml["fov_v"].as<double>();
   new_fov_h_ = yaml["new_fov_h"].as<double>();
   new_fov_v_ = yaml["new_fov_v"].as<double>();
+  enemy_color_ =
+    (yaml["enemy_color"].as<std::string>() == "red") ? auto_aim::Color::red : auto_aim::Color::blue;
   mode_ = yaml["mode"].as<double>();
-}
-
-void Decider::set_enemy_color(auto_aim::Color enemy_color)
-{
-  enemy_color_ = enemy_color;
-  has_enemy_color_ = true;
 }
 
 io::Command Decider::decide(
@@ -140,9 +133,7 @@ bool Decider::armor_filter(std::list<auto_aim::Armor> & armors)
 {
   if (armors.empty()) return true;
   // 过滤非敌方装甲板
-  if (has_enemy_color_) {
-    armors.remove_if([&](const auto_aim::Armor & a) { return a.color != enemy_color_; });
-  }
+  armors.remove_if([&](const auto_aim::Armor & a) { return a.color != enemy_color_; });
 
   // 25赛季没有5号装甲板
   // armors.remove_if([&](const auto_aim::Armor & a) { return a.name == auto_aim::ArmorName::five; });

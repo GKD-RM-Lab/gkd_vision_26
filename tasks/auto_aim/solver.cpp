@@ -60,7 +60,7 @@ void Solver::solve(Armor & armor) const
   cv::Vec3d rvec, tvec;
   cv::solvePnP(
     object_points, armor.points, camera_matrix_, distort_coeffs_, rvec, tvec, false,
-    cv::SOLVEPNP_ITERATIVE);
+    cv::SOLVEPNP_IPPE);
 
   Eigen::Vector3d xyz_in_camera;
   cv::cv2eigen(tvec, xyz_in_camera);
@@ -135,7 +135,7 @@ double Solver::oupost_reprojection_error(Armor armor, const double & pitch)
   cv::Vec3d rvec, tvec;
   cv::solvePnP(
     object_points, armor.points, camera_matrix_, distort_coeffs_, rvec, tvec, false,
-    cv::SOLVEPNP_ITERATIVE);
+    cv::SOLVEPNP_IPPE);
 
   Eigen::Vector3d xyz_in_camera;
   cv::cv2eigen(tvec, xyz_in_camera);

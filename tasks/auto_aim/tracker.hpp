@@ -5,20 +5,19 @@
 #include <chrono>
 #include <list>
 #include <string>
-#include <tuple>
-#include <vector>
 
 #include "armor.hpp"
 #include "solver.hpp"
 #include "target.hpp"
-#include "tasks/omniperception/detection.hpp"
+#include "tasks/omniperception/perceptron.hpp"
+#include "tools/thread_safe_queue.hpp"
 
 namespace auto_aim
 {
 class Tracker
 {
 public:
-  Tracker(const std::string & config_path, Solver & solver);
+  Tracker(const std::string & config_path, Solver & solver, Color & enemy_color);
 
   std::string state() const;
 
@@ -32,17 +31,13 @@ public:
 
 private:
   Solver & solver_;
-  Color enemy_color_;
+  Color & enemy_color_;
   int min_detect_count_;
   int max_temp_lost_count_;
   int detect_count_;
   int temp_lost_count_;
   int outpost_max_temp_lost_count_;
   int normal_temp_lost_count_;
-  double process_v1_;
-  double process_v2_;
-  double outpost_process_v1_;
-  double outpost_process_v2_;
   std::string state_, pre_state_;
   Target target_;
   std::chrono::steady_clock::time_point last_timestamp_;

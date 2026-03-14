@@ -13,3 +13,10 @@ add_library(tools OBJECT
     pid.cpp
     crc.cpp
 )
+
+target_link_libraries(tools PUBLIC
+    Eigen3::Eigen
+    fmt::fmt
+    nlohmann_json::nlohmann_json
+    spdlog::spdlog
+)

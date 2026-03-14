@@ -12,10 +12,10 @@
 
 #include "io/command.hpp"
 #include "io/gkdcontrol/socket_interface.hpp"
-#include "tasks/auto_aim/armor.hpp"
 #include "tools/logger.hpp"
 #include "tools/thread_safe_queue.hpp"
 #include "io/gkdcontrol/send_control.hpp"
+#include "tasks/auto_aim/armor.hpp"
 
 namespace io
 {
@@ -43,7 +43,7 @@ inline constexpr std::array<std::string_view, 3> GKD_SHOOT_MODE_NAMES = {
 class GKDControl
 {
 public:
-  double bullet_speed = 22;
+  double bullet_speed = 23;
   GKDMode mode;
   GKDShootMode shoot_mode;
   double ft_angle;  //无人机专有
@@ -62,18 +62,20 @@ private:
     std::chrono::steady_clock::time_point timestamp;
   };
 
-  struct ColorData
+  struct Colors 
   {
-    auto_aim::Color enemy_color;
+    auto_aim::Color enemy_colors;
     std::chrono::steady_clock::time_point timestamp;
   };
 
-  tools::ThreadSafeQueue<IMUData> queue_;  // 必须在socket_之前初始化
-  tools::ThreadSafeQueue<ColorData> color_queue_;
+  tools::ThreadSafeQueue<IMUData> queue_;  // 必须在socket_之前初始化  
+  tools::ThreadSafeQueue<Colors> color_queue;
+  
   IMUData data_ahead_;
   IMUData data_behind_;
-  ColorData color_ahead_;
-  ColorData color_behind_;
+
+  Colors enemy_color_ahead_;
+  Colors enemy_color_behind_;
 
   IO::Server_socket_interface socket_interface_;
 

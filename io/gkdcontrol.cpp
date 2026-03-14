@@ -18,7 +18,7 @@ GKDControl::GKDControl(const std::string & config_path)
   shoot_mode(GKDShootMode::left_shoot),
   ft_angle(0.0),
   queue_(5000),
-  color_queue_(5000)
+  color_queue(5000)
 {
   (void)config_path;
   tools::logger()->info("[GKDControl] Using fixed target IP {} for local communication.", kLoopbackIp);
@@ -29,8 +29,10 @@ GKDControl::GKDControl(const std::string & config_path)
   tools::logger()->info("[GKDControl] Waiting for IMU samples...");
   queue_.pop(data_ahead_);
   queue_.pop(data_behind_);
-  color_queue_.pop(color_ahead_);
-  color_queue_.pop(color_behind_);
+
+  color_queue.pop(enemy_color_ahead_);
+  color_queue.pop(enemy_color_behind_);
+
   tools::logger()->info("[GKDControl] Ready.");
 }
 
@@ -55,17 +57,26 @@ Eigen::Quaterniond GKDControl::imu_at(std::chrono::steady_clock::time_point time
   return q_a.slerp(k, q_b).normalized();
 }
 
-auto_aim::Color GKDControl::color_at(std::chrono::steady_clock::time_point timestamp)
-{
-  if (color_behind_.timestamp < timestamp) color_ahead_ = color_behind_;
+auto_aim::Color GKDControl::color_at(std::chrono::steady_clock::time_point timestamp) {
+  if (enemy_color_behind_.timestamp < timestamp) enemy_color_ahead_ = enemy_color_behind_;
 
   while (true) {
-    color_queue_.pop(color_behind_);
-    if (color_behind_.timestamp > timestamp) break;
-    color_ahead_ = color_behind_;
+    color_queue.pop(enemy_color_behind_);
+    if (enemy_color_behind_.timestamp > timestamp) break;
+    enemy_color_ahead_ = enemy_color_behind_;
   }
 
-  return color_ahead_.enemy_color;
+  auto t_a = enemy_color_ahead_.timestamp;
+  auto t_b = enemy_color_behind_.timestamp;
+
+  auto_aim::Color enemy_color = enemy_color_behind_.enemy_colors;
+
+  // std::chrono::duration<double> t_ab = t_b - t_a;
+  // std::chrono::duration<double> t_ac = timestamp - t_a;
+
+  // double k = t_ac / t_ab;
+
+  return enemy_color;
 }
 
 void GKDControl::send(Command command) const
@@ -82,6 +93,7 @@ void GKDControl::initialize_udp_reception()
   std::thread(&IO::Server_socket_interface::task, &socket_interface_).detach();
 
   std::thread([this]() {
+    constexpr double RAD2DEG = 57.29577951308232;
     while (true) {
       ReceiveGimbalInfo current = socket_interface_.pkg;
 
@@ -91,15 +103,23 @@ void GKDControl::initialize_udp_reception()
       }
       // 无奈之举
       current.yaw = -current.yaw;
+      current.pitch = current.pitch;
 
-      Eigen::Vector3d euler(current.yaw, current.pitch, current.roll);
+      Eigen::Vector3d euler(current.yaw, current.pitch, 0.0);
       Eigen::Quaterniond q(tools::rotation_matrix(euler));
-      const auto now = std::chrono::steady_clock::now();
-      // Match the reference GKD implementation: this flag indicates our side is red.
-      const auto enemy_color =
-        current.red ? auto_aim::Color::blue : auto_aim::Color::red;
-      queue_.push({q.normalized(), now});
-      color_queue_.push({enemy_color, now});
+
+      auto_aim::Color enemy_color;
+
+      if (current.red) {
+        enemy_color = auto_aim::blue;
+      }
+      else {
+        enemy_color = auto_aim::red;
+      }
+
+      queue_.push({q.normalized(), std::chrono::steady_clock::now()});
+
+      color_queue.push({enemy_color, std::chrono::steady_clock::now()});
 
       // const double yaw = current.yaw;
       // const double pitch = current.pitch;

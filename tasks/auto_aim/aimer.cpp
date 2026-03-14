@@ -12,6 +12,7 @@
 namespace auto_aim
 {
 Aimer::Aimer(const std::string & config_path)
+: left_yaw_offset_(std::nullopt), right_yaw_offset_(std::nullopt)
 {
   auto yaml = YAML::LoadFile(config_path);
   yaw_offset_ = yaml["yaw_offset"].as<double>() / 57.3;        // degree to rad
@@ -21,6 +22,11 @@ Aimer::Aimer(const std::string & config_path)
   high_speed_delay_time_ = yaml["high_speed_delay_time"].as<double>();
   low_speed_delay_time_ = yaml["low_speed_delay_time"].as<double>();
   decision_speed_ = yaml["decision_speed"].as<double>();
+  if (yaml["left_yaw_offset"].IsDefined() && yaml["right_yaw_offset"].IsDefined()) {
+    left_yaw_offset_ = yaml["left_yaw_offset"].as<double>() / 57.3;    // degree to rad
+    right_yaw_offset_ = yaml["right_yaw_offset"].as<double>() / 57.3;  // degree to rad
+    tools::logger()->info("[Aimer] successfully loading shootmode");
+  }
 }
 
 io::Command Aimer::aim(
@@ -34,7 +40,7 @@ io::Command Aimer::aim(
   double delay_time =
     target.ekf_x()[7] > decision_speed_ ? high_speed_delay_time_ : low_speed_delay_time_;
 
-  // if (bullet_speed < 14) bullet_speed = 23;
+  if (bullet_speed < 14) bullet_speed = 23;
 
   // 考虑detecor和tracker所消耗的时间，此外假设aimer的用时可忽略不计
   auto future = timestamp;
@@ -114,6 +120,25 @@ io::Command Aimer::aim(
   double yaw = std::atan2(final_xyz.y(), final_xyz.x()) + yaw_offset_;
   double pitch = -(current_traj.pitch + pitch_offset_);  //世界坐标系下pitch向上为负
   return {true, false, yaw, pitch};
+}
+
+io::Command Aimer::aim(
+  std::list<Target> targets, std::chrono::steady_clock::time_point timestamp, double bullet_speed,
+  io::ShootMode shoot_mode, bool to_now)
+{
+  double yaw_offset;
+  if (shoot_mode == io::left_shoot && left_yaw_offset_.has_value()) {
+    yaw_offset = left_yaw_offset_.value();
+  } else if (shoot_mode == io::right_shoot && right_yaw_offset_.has_value()) {
+    yaw_offset = right_yaw_offset_.value();
+  } else {
+    yaw_offset = yaw_offset_;
+  }
+
+  auto command = aim(targets, timestamp, bullet_speed, to_now);
+  command.yaw = command.yaw - yaw_offset_ + yaw_offset;
+
+  return command;
 }
 
 AimPoint Aimer::choose_aim_point(const Target & target)

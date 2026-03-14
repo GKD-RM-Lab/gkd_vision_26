@@ -9,8 +9,7 @@ namespace auto_aim
 {
 Target::Target(
   const Armor & armor, std::chrono::steady_clock::time_point t, double radius, int armor_num,
-  Eigen::VectorXd P0_dig, double process_v1, double process_v2, double outpost_process_v1,
-  double outpost_process_v2)
+  Eigen::VectorXd P0_dig)
 : name(armor.name),
   armor_type(armor.type),
   jumped(false),
@@ -20,11 +19,7 @@ Target::Target(
   t_(t),
   is_switch_(false),
   is_converged_(false),
-  switch_count_(0),
-  process_v1_(process_v1),
-  process_v2_(process_v2),
-  outpost_process_v1_(outpost_process_v1),
-  outpost_process_v2_(outpost_process_v2)
+  switch_count_(0)
 {
   auto r = radius;
   priority = armor.priority;
@@ -56,11 +51,6 @@ Target::Target(
 
 Target::Target(double x, double vyaw, double radius, double h) : armor_num_(4)
 {
-  process_v1_ = 100;
-  process_v2_ = 400;
-  outpost_process_v1_ = 10;
-  outpost_process_v2_ = 0.1;
-
   Eigen::VectorXd x0{{x, 0, 0, 0, 0, 0, 0, vyaw, radius, 0, h}};
   Eigen::VectorXd P0_dig{{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}};
   Eigen::MatrixXd P0 = P0_dig.asDiagonal();
@@ -105,11 +95,11 @@ void Target::predict(double dt)
   // https://github.com/rlabbe/Kalman-and-Bayesian-Filters-in-Python/blob/master/07-Kalman-Filter-Math.ipynb
   double v1, v2;
   if (name == ArmorName::outpost) {
-    v1 = outpost_process_v1_;   // 前哨站加速度方差
-    v2 = outpost_process_v2_;   // 前哨站角加速度方差
+    v1 = 10;   // 前哨站加速度方差
+    v2 = 0.1;  // 前哨站角加速度方差
   } else {
-    v1 = process_v1_;           // 加速度方差
-    v2 = process_v2_;           // 角加速度方差
+    v1 = 100;  // 加速度方差
+    v2 = 400;  // 角加速度方差
   }
   auto a = dt * dt * dt * dt / 4;
   auto b = dt * dt * dt / 2;

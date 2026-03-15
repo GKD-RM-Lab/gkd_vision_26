@@ -22,6 +22,7 @@ Aimer::Aimer(const std::string & config_path)
   high_speed_delay_time_ = yaml["high_speed_delay_time"].as<double>();
   low_speed_delay_time_ = yaml["low_speed_delay_time"].as<double>();
   decision_speed_ = yaml["decision_speed"].as<double>();
+  min_spin_speed_ = yaml["min_spin_speed"].IsDefined() ? yaml["min_spin_speed"].as<double>() : 2.0;
   if (yaml["left_yaw_offset"].IsDefined() && yaml["right_yaw_offset"].IsDefined()) {
     left_yaw_offset_ = yaml["left_yaw_offset"].as<double>() / 57.3;    // degree to rad
     right_yaw_offset_ = yaml["right_yaw_offset"].as<double>() / 57.3;  // degree to rad
@@ -35,10 +36,8 @@ io::Command Aimer::aim(
 {
   if (targets.empty()) return {false, false, 0, 0};
   auto target = targets.front();
-
-  auto ekf = target.ekf();
   double delay_time =
-    target.ekf_x()[7] > decision_speed_ ? high_speed_delay_time_ : low_speed_delay_time_;
+    std::abs(target.ekf_x()[7]) > decision_speed_ ? high_speed_delay_time_ : low_speed_delay_time_;
 
   if (bullet_speed < 14) bullet_speed = 23;
 
@@ -146,8 +145,12 @@ AimPoint Aimer::choose_aim_point(const Target & target)
   Eigen::VectorXd ekf_x = target.ekf_x();
   std::vector<Eigen::Vector4d> armor_xyza_list = target.armor_xyza_list();
   auto armor_num = armor_xyza_list.size();
+
   // 如果装甲板未发生过跳变，则只有当前装甲板的位置已知
-  if (!target.jumped) return {true, armor_xyza_list[0]};
+  if (!target.jumped) {
+    lock_id_ = -1;
+    return {true, armor_xyza_list[0]};
+  }
 
   // 整车旋转中心的球坐标yaw
   auto center_yaw = std::atan2(ekf_x[2], ekf_x[0]);
@@ -160,7 +163,7 @@ AimPoint Aimer::choose_aim_point(const Target & target)
   }
 
   // 不考虑小陀螺
-  if (std::abs(target.ekf_x()[8]) <= 2 && target.name != ArmorName::outpost) {
+  if (std::abs(ekf_x[7]) <= min_spin_speed_ && target.name != ArmorName::outpost) {
     // 选择在可射击范围内的装甲板
     std::vector<int> id_list;
     for (int i = 0; i < armor_num; i++) {
@@ -169,6 +172,7 @@ AimPoint Aimer::choose_aim_point(const Target & target)
     }
     // 绝无可能
     if (id_list.empty()) {
+      lock_id_ = -1;
       tools::logger()->warn("Empty id list!");
       return {false, armor_xyza_list[0]};
     }
@@ -180,7 +184,6 @@ AimPoint Aimer::choose_aim_point(const Target & target)
       // 未处于锁定模式时，选择delta_angle绝对值较小的装甲板，进入锁定模式
       if (lock_id_ != id0 && lock_id_ != id1)
         lock_id_ = (std::abs(delta_angle_list[id0]) < std::abs(delta_angle_list[id1])) ? id0 : id1;
-
       return {true, armor_xyza_list[lock_id_]};
     }
 
@@ -190,6 +193,7 @@ AimPoint Aimer::choose_aim_point(const Target & target)
   }
 
   double coming_angle, leaving_angle;
+  lock_id_ = -1;
   if (target.name == ArmorName::outpost) {
     coming_angle = 70 / 57.3;
     leaving_angle = 30 / 57.3;
@@ -204,7 +208,6 @@ AimPoint Aimer::choose_aim_point(const Target & target)
     if (ekf_x[7] > 0 && delta_angle_list[i] < leaving_angle) return {true, armor_xyza_list[i]};
     if (ekf_x[7] < 0 && delta_angle_list[i] > -leaving_angle) return {true, armor_xyza_list[i]};
   }
-
   return {false, armor_xyza_list[0]};
 }
 

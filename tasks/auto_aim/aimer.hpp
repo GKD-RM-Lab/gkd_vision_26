@@ -4,6 +4,7 @@
 #include <Eigen/Dense>
 #include <chrono>
 #include <list>
+#include <optional>
 
 #include "io/cboard.hpp"
 #include "io/command.hpp"
@@ -41,6 +42,7 @@ private:
   double high_speed_delay_time_;
   double low_speed_delay_time_;
   double decision_speed_;
+  double min_spin_speed_;
 
   AimPoint choose_aim_point(const Target & target);
 };

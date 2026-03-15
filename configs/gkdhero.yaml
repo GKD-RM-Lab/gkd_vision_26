@@ -45,6 +45,7 @@ pitch_offset: -1 # degree 2
 comming_angle: 55 # degree
 leaving_angle: 20 # degree
 decision_speed: 7 # rad/s
+min_spin_speed: 2 # rad/s
 high_speed_delay_time: 0.0 # s
 low_speed_delay_time: 0.0 # s planner use this value
 

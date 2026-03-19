@@ -5,6 +5,7 @@
 #include "io/gkdcontrol/send_control.hpp"
 #include "tools/logger.hpp"
 #include "tools/math_tools.hpp"
+#include "tools/yaml.hpp"
 
 namespace
 {
@@ -14,14 +15,18 @@ const std::string kLoopbackIp = "127.0.0.1";
 namespace io
 {
 GKDControl::GKDControl(const std::string & config_path)
-: mode(GKDMode::idle),
+: bullet_speed(0.0),
+  mode(GKDMode::idle),
   shoot_mode(GKDShootMode::left_shoot),
   ft_angle(0.0),
   queue_(5000),
   color_queue(5000)
 {
-  (void)config_path;
+  auto yaml = tools::load(config_path);
+  bullet_speed = tools::read<double>(yaml, "bullet_speed");
+
   tools::logger()->info("[GKDControl] Using fixed target IP {} for local communication.", kLoopbackIp);
+  tools::logger()->info("[GKDControl] Bullet speed set to {:.2f} m/s from config.", bullet_speed);
 
   initialize_udp_transmission();
   initialize_udp_reception();

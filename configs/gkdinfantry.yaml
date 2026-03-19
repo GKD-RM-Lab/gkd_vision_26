@@ -38,19 +38,20 @@ process_v1: 120
 process_v2: 100
 
 #####-----aimer参数-----#####
-yaw_offset: -1 # degree -2.5
-pitch_offset: 0 # degree 2
+yaw_offset: 1 # degree -2.5
+pitch_offset: 5 # degree 2
 comming_angle: 55 # degree
 leaving_angle: 20 # degree
-decision_speed: 7 # rad/s
+decision_speed: 3 # rad/s
 min_spin_speed: 2 # rad/s
 high_speed_delay_time: 0.04 # s
 low_speed_delay_time: 0.01 # s planner use this value
 
 #####-----shooter参数-----#####
+bullet_speed: 19.5 # m/s
 first_tolerance: 3 # 近距离射击容差，degree
-second_tolerance: 2 # 远距离射击容差，degree
-judge_distance: 2 #距离判断阈值
+second_tolerance: 1 # 远距离射击容差，degree
+judge_distance: 4 #距离判断阈值
 auto_fire: true # 是否由自瞄控制射击
 
 camera_name: "hikrobot"
@@ -69,7 +70,7 @@ distort_coeffs: [-0.12545568772566174, 0.11705061936054625, -0.00025855083876730
 
 
 R_camera2gimbal: [0, 0, 1, -1, 0, 0, 0, -1, 0]
-t_camera2gimbal: [0.075517325957791413, 0.06625338092767802, 0.041359710880185793]
+t_camera2gimbal: [0.069127325957791413, 0.00000000092767802, 0.0910000880185793]
 
 #####-----手眼测试参数-----#####
 handeye_test:

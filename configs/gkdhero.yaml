@@ -47,6 +47,7 @@ high_speed_delay_time: 0.04 # s
 low_speed_delay_time: 0.01 # s planner use this value
 
 #####-----shooter参数-----#####
+bullet_speed: 19.5 # m/s
 first_tolerance: 3 # 近距离射击容差，degree
 second_tolerance: 2 # 远距离射击容差，degree
 judge_distance: 2 #距离判断阈值

@@ -50,8 +50,8 @@ process_v1: 120
 process_v2: 100
 
 #####-----aimer参数-----#####
-yaw_offset: 0 # degree close 0.5  far 
-pitch_offset: -0.2 # degree close -0.5  far
+yaw_offset: 0.7 # degree close 0.5  far 
+pitch_offset: 0.5 # degree close -0.5  far
 comming_angle: 55.5 # degree
 leaving_angle: 14 # degree 20
 decision_speed: 7 # rad/s
@@ -80,11 +80,11 @@ vid_pid: "2bdf:0001"
 R_gimbal2imubody: [1, 0, 0, 0, 1, 0, 0, 0, 1]
 
 # 重投影误差: 0.0877px
-camera_matrix: [3574.6077589579377, 0, 738.75421070048003, 0, 3575.0512483596581, 591.98019144155694, 0, 0, 1]
-distort_coeffs: [-0.0072020846467077569, 0.015885370380101307, 0.0022391178761444956, 0.0012999871005454392, 0]
+camera_matrix: [1810.3869878736987, 0, 741.07463096532899, 0, 1810.0423826240931, 585.64483562365547, 0, 0, 1]
+distort_coeffs: [-0.088655192424331064, 0.23229134399595891, -0.00031251764390415873, 0.00070347740299153087, 0]
 
 R_camera2gimbal: [0, 0, 1, -1, 0, 0, 0, -1, 0]
-t_camera2gimbal: [0.09256571583, 0, 0.04637]
+t_camera2gimbal: [0.08756571583, 0, 0.04637]
 
 #####-----cboard参数-----#####
 quaternion_canid: 0x100

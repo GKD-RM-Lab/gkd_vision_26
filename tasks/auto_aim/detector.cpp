@@ -30,7 +30,7 @@ Detector::Detector(const std::string & config_path, bool debug)
   std::filesystem::create_directory(save_path_);
 }
 
-std::list<Armor> Detector::detect(const cv::Mat & bgr_img, int frame_count)
+std::list<Armor> Detector::detect1(const cv::Mat & bgr_img, int frame_count)
 {
   // 彩色图转灰度图
   cv::Mat gray_img;

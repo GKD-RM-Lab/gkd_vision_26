@@ -1,6 +1,7 @@
 #include "usbcamera.hpp"
 
 #include <stdexcept>
+#include <utility>
 
 #include "tools/logger.hpp"
 #include "tools/yaml.hpp"
@@ -88,6 +89,19 @@ void USBCamera::read(cv::Mat & img, std::chrono::steady_clock::time_point & time
 
   img = data.img;
   timestamp = data.timestamp;
+}
+
+bool USBCamera::try_read(cv::Mat & img, std::chrono::steady_clock::time_point & timestamp)
+{
+  CameraData data;
+  if (!queue_.try_pop(data)) {
+    img.release();
+    timestamp = {};
+    return false;
+  }
+  img = std::move(data.img);
+  timestamp = data.timestamp;
+  return true;
 }
 
 void USBCamera::open()

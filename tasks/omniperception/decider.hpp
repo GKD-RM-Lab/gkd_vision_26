@@ -7,7 +7,6 @@
 #include <unordered_map>
 
 #include "detection.hpp"
-#include "io/camera.hpp"
 #include "io/command.hpp"
 #include "io/usbcamera/usbcamera.hpp"
 #include "tasks/auto_aim/armor.hpp"
@@ -22,16 +21,12 @@ public:
   Decider(const std::string & config_path, auto_aim::Color & enemy_color);
 
   io::Command decide(
-    auto_aim::YOLO & yolo, const Eigen::Vector3d & gimbal_pos, io::USBCamera & usbcam1,
-    io::USBCamera & usbcam2, io::Camera & back_cammera);
-
-  io::Command decide(
-    auto_aim::YOLO & yolo, const Eigen::Vector3d & gimbal_pos, io::Camera & back_cammera);
+    auto_aim::YOLO & yolo, const Eigen::Vector3d & gimbal_pos, io::USBCamera & usbcam);
 
   io::Command decide(const std::vector<DetectionResult> & detection_queue);
 
-  Eigen::Vector2d delta_angle(
-    const std::list<auto_aim::Armor> & armors, const std::string & camera);
+  // Requires nonempty armors; returns USB yaw/pitch angles in degrees.
+  Eigen::Vector2d delta_angle(const std::list<auto_aim::Armor> & armors);
 
   bool armor_filter(std::list<auto_aim::Armor> & armors);
 
@@ -52,8 +47,8 @@ private:
   int img_height_;
   double fov_h_, new_fov_h_;
   double fov_v_, new_fov_v_;
+  double usb_yaw_offset_;
   int mode_;
-  int count_;
 
   auto_aim::Color & enemy_color_;
   auto_aim::YOLO detector_;
@@ -63,26 +58,26 @@ private:
   using PriorityMap = std::unordered_map<auto_aim::ArmorName, auto_aim::ArmorPriority>;
 
   const PriorityMap mode1 = {
-    {auto_aim::ArmorName::one, auto_aim::ArmorPriority::second},
+    {auto_aim::ArmorName::one, auto_aim::ArmorPriority::third},
     {auto_aim::ArmorName::two, auto_aim::ArmorPriority::forth},
     {auto_aim::ArmorName::three, auto_aim::ArmorPriority::first},
     {auto_aim::ArmorName::four, auto_aim::ArmorPriority::first},
     {auto_aim::ArmorName::five, auto_aim::ArmorPriority::third},
-    {auto_aim::ArmorName::sentry, auto_aim::ArmorPriority::third},
+    {auto_aim::ArmorName::sentry, auto_aim::ArmorPriority::second},
     {auto_aim::ArmorName::outpost, auto_aim::ArmorPriority::fifth},
     {auto_aim::ArmorName::base, auto_aim::ArmorPriority::fifth},
     {auto_aim::ArmorName::not_armor, auto_aim::ArmorPriority::fifth}};
 
   const PriorityMap mode2 = {
-    {auto_aim::ArmorName::two, auto_aim::ArmorPriority::first},
-    {auto_aim::ArmorName::one, auto_aim::ArmorPriority::second},
-    {auto_aim::ArmorName::three, auto_aim::ArmorPriority::second},
-    {auto_aim::ArmorName::four, auto_aim::ArmorPriority::second},
-    {auto_aim::ArmorName::five, auto_aim::ArmorPriority::second},
-    {auto_aim::ArmorName::sentry, auto_aim::ArmorPriority::third},
-    {auto_aim::ArmorName::outpost, auto_aim::ArmorPriority::third},
-    {auto_aim::ArmorName::base, auto_aim::ArmorPriority::third},
-    {auto_aim::ArmorName::not_armor, auto_aim::ArmorPriority::third}};
+    {auto_aim::ArmorName::one, auto_aim::ArmorPriority::third},
+    {auto_aim::ArmorName::two, auto_aim::ArmorPriority::forth},
+    {auto_aim::ArmorName::three, auto_aim::ArmorPriority::first},
+    {auto_aim::ArmorName::four, auto_aim::ArmorPriority::first},
+    {auto_aim::ArmorName::five, auto_aim::ArmorPriority::third},
+    {auto_aim::ArmorName::sentry, auto_aim::ArmorPriority::second},
+    {auto_aim::ArmorName::outpost, auto_aim::ArmorPriority::fifth},
+    {auto_aim::ArmorName::base, auto_aim::ArmorPriority::fifth},
+    {auto_aim::ArmorName::not_armor, auto_aim::ArmorPriority::fifth}};
 };
 
 enum PriorityMode

@@ -6,6 +6,7 @@
 #include <iostream>
 #include <mutex>
 #include <queue>
+#include <utility>
 
 namespace tools
 {
@@ -49,6 +50,16 @@ public:
 
     value = queue_.front();
     queue_.pop();
+  }
+
+  bool try_pop(T & value)
+  {
+    std::unique_lock<std::mutex> lock(mutex_);
+    if (queue_.empty()) return false;
+
+    value = std::move(queue_.front());
+    queue_.pop();
+    return true;
   }
 
   T pop()

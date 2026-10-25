@@ -63,7 +63,7 @@ int main(int argc, char * argv[])
     solver.set_R_gimbal2world(q);
 
     auto detect_start = std::chrono::steady_clock::now();
-    auto armors = detector.detect(img, frame_count);
+    auto armors = detector.detect1(img, frame_count);
 
     auto tracker_start = std::chrono::steady_clock::now();
     auto targets = tracker.track(armors, t);

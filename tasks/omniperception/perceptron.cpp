@@ -1,106 +1,62 @@
 #include "perceptron.hpp"
 
 #include <chrono>
-#include <memory>
-#include <thread>
+#include <stdexcept>
+#include <utility>
 
-#include "tasks/auto_aim/yolo.hpp"
-#include "tools/exiter.hpp"
 #include "tools/logger.hpp"
 
 namespace omniperception
 {
-Perceptron::Perceptron(
-  io::USBCamera * usbcam1, io::USBCamera * usbcam2, io::USBCamera * usbcam3,
-  io::USBCamera * usbcam4, const std::string & config_path, auto_aim::Color & enemy_color)
-: detection_queue_(10), decider_(config_path, enemy_color), stop_flag_(false)
+Perceptron::Perceptron(io::USBCamera * camera, const std::string & config_path)
+: camera_(camera), detection_queue_(10)
 {
-  // 初始化 YOLO 模型
-  yolo_parallel1_ = std::make_shared<auto_aim::YOLO>(config_path, false);
-  yolo_parallel2_ = std::make_shared<auto_aim::YOLO>(config_path, false);
-  yolo_parallel3_ = std::make_shared<auto_aim::YOLO>(config_path, false);
-  yolo_parallel4_ = std::make_shared<auto_aim::YOLO>(config_path, false);
+  if (!camera_) throw std::invalid_argument("Perceptron requires one USB camera");
 
-  std::this_thread::sleep_for(std::chrono::seconds(2));
-  // 创建四个线程进行并行推理
-  threads_.emplace_back([&] { parallel_infer(usbcam1, yolo_parallel1_); });
-  threads_.emplace_back([&] { parallel_infer(usbcam2, yolo_parallel2_); });
-  threads_.emplace_back([&] { parallel_infer(usbcam3, yolo_parallel3_); });
-  threads_.emplace_back([&] { parallel_infer(usbcam4, yolo_parallel4_); });
-
-  tools::logger()->info("Perceptron initialized.");
+  yolo_ = std::make_unique<auto_aim::YOLO>(config_path, false);
+  thread_ = std::thread([this] { infer(); });
+  tools::logger()->info("Single-camera Perceptron initialized.");
 }
 
 Perceptron::~Perceptron()
 {
-  {
-    std::unique_lock<std::mutex> lock(mutex_);
-    stop_flag_ = true;  // 设置退出标志
-  }
-  condition_.notify_all();  // 唤醒所有等待的线程
-
-  // 等待线程结束
-  for (auto & t : threads_) {
-    if (t.joinable()) {
-      t.join();
-    }
-  }
+  stop_flag_ = true;
+  if (thread_.joinable()) thread_.join();
   tools::logger()->info("Perceptron destructed.");
 }
 
 std::vector<DetectionResult> Perceptron::get_detection_queue()
 {
-  std::vector<DetectionResult> result;
-  DetectionResult temp;
-
-  // 注意：这里的 pop 不阻塞（假设队列为空时会报错或忽略）
-  while (!detection_queue_.empty()) {
-    detection_queue_.pop(temp);
-    result.push_back(std::move(temp));
+  std::vector<DetectionResult> results;
+  DetectionResult result;
+  while (detection_queue_.try_pop(result)) {
+    results.push_back(std::move(result));
   }
-
-  return result;
+  return results;
 }
 
-// 将并行推理逻辑移动到类成员函数
-void Perceptron::parallel_infer(
-  io::USBCamera * cam, std::shared_ptr<auto_aim::YOLO> & yolov8_parallel)
+void Perceptron::infer()
 {
-  if (!cam) {
-    tools::logger()->error("Camera pointer is null!");
-    return;
-  }
+  using namespace std::chrono_literals;
   try {
-    while (true) {
-      cv::Mat usb_img;
-      std::chrono::steady_clock::time_point ts;
-
-      {
-        std::unique_lock<std::mutex> lock(mutex_);
-        if (stop_flag_) break;  // 检查是否需要退出
-      }
-
-      cam->read(usb_img, ts);
-      if (usb_img.empty()) {
-        std::this_thread::sleep_for(std::chrono::milliseconds(30));
+    while (!stop_flag_) {
+      cv::Mat image;
+      std::chrono::steady_clock::time_point timestamp;
+      if (!camera_->try_read(image, timestamp) || image.empty()) {
+        std::this_thread::sleep_for(5ms);
         continue;
       }
 
-      auto armors = yolov8_parallel->detect(usb_img);
-      if (!armors.empty()) {
-        auto delta_angle = decider_.delta_angle(armors, cam->device_name);
+      auto armors = yolo_->detect(image);
+      if (stop_flag_ || armors.empty()) continue;
 
-        DetectionResult dr;
-        dr.armors = std::move(armors);
-        dr.timestamp = ts;
-        dr.delta_yaw = delta_angle[0] / 57.3;
-        dr.delta_pitch = delta_angle[1] / 57.3;
-        detection_queue_.push(dr);  // 推入线程安全队列
-      }
+      // Preserve the legacy result type without producing direction/control information.
+      DetectionResult result{std::move(armors), timestamp, 0, 0};
+      detection_queue_.push(result);
     }
-  } catch (const std::exception & e) {
-    tools::logger()->error("Exception in parallel_infer: {}", e.what());
+  } catch (const std::exception & error) {
+    tools::logger()->error("[Perceptron] USB inference failed: {}", error.what());
+    stop_flag_ = true;
   }
 }
-
 }  // namespace omniperception

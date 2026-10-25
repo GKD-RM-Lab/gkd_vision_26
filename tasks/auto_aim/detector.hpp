@@ -17,7 +17,7 @@ class Detector
 public:
   Detector(const std::string & config_path, bool debug = true);
 
-  std::list<Armor> detect(const cv::Mat & bgr_img, int frame_count = -1);
+  std::list<Armor> detect1(const cv::Mat & bgr_img, int frame_count = -1);
 
   bool detect(Armor & armor, const cv::Mat & bgr_img);
 

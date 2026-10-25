@@ -17,6 +17,8 @@ public:
   ~USBCamera();
   cv::Mat read();
   void read(cv::Mat & img, std::chrono::steady_clock::time_point & timestamp);
+  // Returns immediately; clears img and returns false when no frame is available.
+  bool try_read(cv::Mat & img, std::chrono::steady_clock::time_point & timestamp);
   std::string device_name;
 
 private:

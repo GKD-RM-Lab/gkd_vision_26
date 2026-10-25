@@ -104,6 +104,21 @@ cmake --preset dev-debug
 
 这样补全、跳转、诊断都会和真实编译参数保持一致。
 
+macOS 本地编辑也可以生成编译数据库；开发 `omniperception` 时包含该模块：
+
+```bash
+brew install cmake ninja opencv eigen fmt spdlog yaml-cpp nlohmann-json openvino
+cmake --preset dev-debug -DSP_VISION_BUILD_OMNIPERCEPTION=ON
+```
+
+VS Code 使用 `llvm-vs-code-extensions.vscode-clangd` 扩展，并关闭 C/C++ 扩展的
+IntelliSense，避免两套诊断同时运行。修改 CMake 目标或依赖后，重新执行上面的
+配置命令；需要刷新语言服务时执行 `clangd: Restart language server`。
+clangd 的数据库配置见 [官方说明](https://clangd.llvm.org/config#compilationdatabase)。
+
+本地数据库使用本机头文件和 SDK。Linux CAN、epoll 与 ROS2 等平台专用代码
+仍需要在 Linux/容器内解析和编译；macOS 上不通过伪造头文件或屏蔽诊断隐藏这些差异。
+
 ### VS Code Dev Container
 
 如果你用 VS Code，可以直接 `Reopen in Container`。仓库已经预设：

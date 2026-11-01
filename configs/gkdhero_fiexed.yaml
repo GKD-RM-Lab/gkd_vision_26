@@ -1,0 +1,98 @@
+#####-----神经网络参数-----#####
+yolo_name: yolov8
+classify_model: assets/tiny_resnet.onnx
+yolo11_model_path: assets/yolo11.xml
+yolov8_model_path: assets/yolov8.xml
+yolov5_model_path: assets/yolov5.xml
+device: CPU
+min_confidence: 0.7
+use_traditional: true
+
+#####-----ROI-----#####
+roi:
+  x: 420
+  y: 50
+  width: 600
+  height: 600
+
+use_roi: false
+
+#####-----传统方法参数-----#####
+threshold: 150
+max_angle_error: 45 # degree
+min_lightbar_ratio: 1.5
+max_lightbar_ratio: 20
+min_lightbar_length: 8
+min_armor_ratio: 1
+max_armor_ratio: 5
+max_side_ratio: 1.5
+max_rectangular_error: 25 # degree
+
+#####-----tracker参数-----#####
+min_detect_count: 5
+max_temp_lost_count: 15
+outpost_max_temp_lost_count: 75
+process_v1: 120
+process_v2: 100
+
+#####-----aimer参数-----#####
+yaw_offset: -0.7 # degree
+pitch_offset: 0 # degree
+comming_angle: 30 # degree
+leaving_angle: 30 # degree
+decision_speed: 2 # rad/s
+min_spin_speed: 2 # rad/s
+high_speed_delay_time: 0.03 # s
+low_speed_delay_time: 0.0 # s
+
+#####-----原shooter兼容参数-----#####
+bullet_speed: 11.5 # m/s
+first_tolerance: 8 # degree
+second_tolerance: 8 # degree
+judge_distance: 1 # m
+auto_fire: true
+
+#####-----中心yaw及旋转装甲开火参数-----#####
+fixed_shooter:
+  first_tolerance: 8 # 近距离云台中心跟踪容差，degree
+  second_tolerance: 8 # 远距离云台中心跟踪容差，degree
+  judge_distance: 1 # 远近距离分界，m
+  small_armor_width: 0.135 # 小装甲板宽度，m
+  big_armor_width: 0.230 # 大装甲板宽度，m
+  max_face_angle: 90 # 大于该角度认为装甲板位于车体背面，degree
+
+camera_name: "hikrobot"
+exposure_ms: 8
+gain: 17.5
+vid_pid: "2bdf:0001"
+
+#  1  0  0
+#  0  1  0
+#  0  0  1
+R_gimbal2imubody: [1, 0, 0, 0, 1, 0, 0, 0, 1]
+
+# 重投影误差: 0.7266px
+camera_matrix: [1261.2391820583621, 0, 329.2893575394387, 0, 1260.0041684786017, 233.03517595992329, 0, 0, 1]
+distort_coeffs: [-0.052165765534110793, -0.53977455154024767, 0.0002377535279643977, 0.0021425223378338698, 0]
+
+# 相机同理想情况的偏角: yaw-1.61 pitch-0.82 roll-0.61 degree
+R_camera2gimbal: [0, 0, 1, -1, 0, 0, 0, -1, 0]
+t_camera2gimbal: [0.048817325957791413, 0, 0.048000000880185793]
+
+#####-----手眼测试参数-----#####
+handeye_test:
+  height: 0.6
+  grid_num: 6
+  grid_size: 0.1
+  delay: 0
+
+#####-----planner-----#####
+fire_thresh: 0.0015
+
+max_yaw_acc: 0.5
+Q_yaw: [1, 1]
+R_yaw: [1e8]
+
+max_pitch_acc: 100
+Q_pitch: [9e6, 0]
+R_pitch: [1]

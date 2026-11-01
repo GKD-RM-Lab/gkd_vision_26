@@ -66,6 +66,15 @@ endfunction()
 #################### src ####################
 sp_vision_add_binary(gkdhero src/gkdhero.cpp ${OpenCV_LIBS} fmt::fmt auto_aim tools io)
 sp_vision_add_binary(gkdhero_debug src/gkdhero_debug.cpp ${OpenCV_LIBS} fmt::fmt auto_aim tools io)
+sp_vision_add_binary(
+  gkdhero_fiexed_debug
+  src/gkdhero_fiexed_debug.cpp
+  ${OpenCV_LIBS}
+  fmt::fmt
+  auto_aim
+  tools
+  io
+)
 sp_vision_add_binary(gkdinfantry src/gkdinfantry.cpp ${OpenCV_LIBS} fmt::fmt auto_aim tools io)
 sp_vision_add_binary(gkdsentry src/gkdsentry.cpp ${OpenCV_LIBS} fmt::fmt auto_aim tools io)
 sp_vision_add_binary(gkdsentry_debug src/gkdsentry_debug.cpp ${OpenCV_LIBS} fmt::fmt auto_aim tools io)

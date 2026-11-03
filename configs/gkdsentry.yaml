@@ -100,3 +100,17 @@ model: "assets/yolo11_buff_int8.xml"
 #####-----buff_aimer参数-----#####
 fire_gap_time: 0.700   # s
 predict_time: 0.120     # s
+
+#####-----绘制后视频传输（gkdsentry_video_debug）-----#####
+video:
+  enabled: false # 运行期间可修改此项；工作线程约每秒重读一次
+  width: 256
+  height: 192
+  fps: 15
+  bitrate: 48000 # H.265 bit/s；完整发送帧率还受分片预算和画面复杂度限制
+  queue_capacity: 1 # 满时丢旧帧；工作线程只取最新帧
+  gop: 15 # 周期 IDR；本地丢弃编码帧后强制 IDR 恢复参考链
+  packet_hz: 50 # 0x0310 分片上限；桥接/电控端也须执行全局限速
+  max_frame_age_ms: 500 # 从采集时间计算；超时丢弃，不堆积延迟
+  stats_interval_s: 2.0
+  udp_port: 11454 # 视频独立消息；原控制目的端口为 11451

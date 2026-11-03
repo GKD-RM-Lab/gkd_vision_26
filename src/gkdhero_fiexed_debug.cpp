@@ -5,6 +5,7 @@
 
 #include "io/camera.hpp"
 #include "io/gkdcontrol.hpp"
+#include "io/video/video_streamer.hpp"
 #include "tasks/auto_aim/aimer.hpp"
 #include "tasks/auto_aim/center_aimer.hpp"
 #include "tasks/auto_aim/center_shooter.hpp"
@@ -34,6 +35,10 @@ int main(int argc, char * argv[])
   tools::Exiter exiter;
   tools::Recorder recorder;
   io::GKDControl gkdcontrol(config_path);
+  io::VideoStreamer video_streamer(
+    config_path, [&gkdcontrol](const io::VideoFragment & fragment) {
+      return gkdcontrol.try_send_video(fragment);
+    });
   io::Camera camera(config_path);
   auto_aim::YOLO detector(config_path, true);
   auto_aim::Solver solver(config_path);
@@ -113,6 +118,10 @@ int main(int argc, char * argv[])
         frame_count, state[0], state[2], state[4], state[6], fire.flight_time, fire.shoot);
     }
 
+    // Retain the full-size annotated buffer before the display-only 0.5x resize.
+    // Only a shallow reference here; copy into the video queue after sending control.
+    const cv::Mat video_frame = video_streamer.enabled() ? img : cv::Mat{};
+
     tools::logger()->info(
       "[{}] total: {:.1f}ms ({:.1f} FPS), yolo: {:.1f}ms, tracker: {:.1f}ms, aimer: "
       "{:.1f}ms",
@@ -124,6 +133,7 @@ int main(int argc, char * argv[])
     cv::imshow("gkdhero_fiexed", img);
     cv::waitKey(1);
     gkdcontrol.send(command);
+    video_streamer.submit(video_frame, t);
     frame_count++;
   }
 

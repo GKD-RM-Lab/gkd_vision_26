@@ -96,3 +96,17 @@ R_yaw: [1e8]
 max_pitch_acc: 100
 Q_pitch: [9e6, 0]
 R_pitch: [1]
+
+#####-----绘制后视频传输（视觉端 -> 本机桥接 -> 电控 -> 0x0310）-----#####
+video:
+  enabled: false # 可在运行期间修改此项；工作线程约每秒重读一次
+  width: 256
+  height: 192
+  fps: 15
+  bitrate: 48000 # H.265 bit/s；实际完整发送帧率受 50 包/s 和画面复杂度限制
+  queue_capacity: 1 # 满时覆盖最旧帧，工作线程总是取最新帧
+  gop: 15 # 周期性 IDR；主动丢弃已编码帧后强制下一帧为 IDR
+  packet_hz: 50 # 官方 0x0310 上限，禁止超过 50
+  max_frame_age_ms: 500 # 从相机采集时刻计算；超时丢帧，不累积延迟
+  stats_interval_s: 2.0
+  udp_port: 11454 # 独立视频消息端口，待桥接端适配；原控制端口 11451 不变

@@ -6,6 +6,7 @@
 #include <array>
 #include <chrono>
 #include <cmath>
+#include <cmath>
 #include <cstring>
 #include <filesystem>
 #include <fstream>
@@ -52,7 +53,7 @@ void eventually(Predicate predicate, const std::string & message, int timeout_ms
 void test_packets()
 {
   require(io::fragment_video({}, {}).empty(), "Empty frame should not emit a packet");
-  for (const size_t size : {size_t(1), size_t(268), size_t(269), size_t(536), size_t(65537)}) {
+  for (const size_t size : {size_t(1), size_t(204), size_t(205), size_t(408), size_t(65537)}) {
     std::vector<uint8_t> source(size);
     for (size_t i = 0; i < size; ++i) source[i] = static_cast<uint8_t>(i * 29);
     io::VideoFrameInfo frame;
@@ -60,7 +61,7 @@ void test_packets()
     frame.timestamp_us = 0x0102030405060708ULL;
     frame.keyframe = true;
     auto fragments = io::fragment_video(source, frame);
-    require(fragments.front().size() == 300, "Official data segment must be exactly 300 bytes");
+    require(fragments.front().size() <= 240, "Video block exceeds reserved budget");
     require(fragments.front()[4] == 0x78 && fragments.front()[8] == 8, "Little endian wire layout");
     std::reverse(fragments.begin(), fragments.end());  // Simulated out-of-order delivery.
     std::vector<uint8_t> reconstructed(size);
@@ -72,10 +73,9 @@ void test_packets()
       require(parsed.frame.keyframe && parsed.frame.encoded_size == size, "Frame metadata");
       std::copy_n(
         data.data() + io::kVideoHeaderSize, parsed.payload_size,
-        reconstructed.data() + parsed.index * io::kVideoPayloadSize);
-      for (size_t i = io::kVideoHeaderSize + parsed.payload_size; i < data.size(); ++i) {
-        require(data[i] == 0, "Last fragment padding must be zero");
-      }
+        reconstructed.data() + parsed.offset);
+      require(data.size() == io::kVideoHeaderSize + parsed.payload_size,
+        "Variable final fragment must not be padded");
     }
     require(source == reconstructed, "Out-of-order reassembly changed encoded bytes");
     io::VideoFragmentInfo parsed;
@@ -91,6 +91,24 @@ void test_packets()
     corrupt[25] = 255;
     require(!io::parse_video_fragment(corrupt, parsed), "Invalid payload size accepted");
   }
+  for (size_t budget : {size_t(37), size_t(100), size_t(200), size_t(240)}) {
+    const auto parts = io::fragment_video(std::vector<uint8_t>(421, 5), {}, budget);
+    uint32_t offset = 0;
+    for (const auto & part : parts) {
+      io::VideoFragmentInfo parsed;
+      require(io::parse_video_fragment(part, parsed), "Variable fragment rejected");
+      require(part.size() <= budget && part.size() == io::kVideoHeaderSize + parsed.payload_size,
+        "Variable fragment padded or exceeds budget");
+      require(parsed.offset == offset, "Wrong byte offset");
+      offset += parsed.payload_size;
+    }
+    require(offset == 421, "Variable fragmentation lost data");
+  }
+  io::VideoStreamConfig reserved;
+  reserved.video_block_max_bytes = 241;
+  bool budget_rejected = false;
+  try { reserved.validate(); } catch (const std::invalid_argument &) { budget_rejected = true; }
+  require(budget_rejected, "60 B reservation not enforced");
   io::VideoStreamConfig invalid;
   invalid.packet_hz = 51;
   bool rejected = false;
@@ -126,17 +144,23 @@ void test_transport()
 {
   Receiver video;
   io::VideoSender sender(video.port);
-  io::VideoFragment fragment{};
-  fragment.fill(0xAB);
+  auto fragment = io::fragment_video(std::vector<uint8_t>(204, 0xAB), {}).front();
   require(sender.try_send(fragment), "Nonblocking video send failed");
   std::array<uint8_t, 1024> wire{};
   ssize_t length = -1;
   eventually([&] { length = recv(video.fd, wire.data(), wire.size(), 0); return length >= 0; },
     "Video UDP receive timed out");
-  require(length == 306, "Unexpected bridge datagram size");
-  require(wire[0] == 0x6B && wire[1] == 1 && wire[2] == 0x10 && wire[3] == 3 &&
-    wire[4] == 0x2C && wire[5] == 1, "Bridge message type/command/length changed");
+  require(length == 246, "Unexpected bridge datagram size");
+  require(wire[0] == 0x6B && wire[1] == 2 && wire[2] == 0x10 && wire[3] == 3 &&
+    wire[4] == 240 && wire[5] == 0, "Bridge message type/command/length changed");
   require(std::equal(fragment.begin(), fragment.end(), wire.begin() + 6), "Bridge payload changed");
+
+  const auto short_fragment = io::fragment_video({0x7F}, {}).front();
+  require(sender.try_send(short_fragment), "Short video fragment send failed");
+  eventually([&] { length = recv(video.fd, wire.data(), wire.size(), 0); return length >= 0; },
+    "Short UDP receive timeout");
+  require(length == 43 && wire[4] == 37 && wire[5] == 0, "Last UDP fragment padded");
+  require(!sender.try_send({}) && !sender.try_send(io::VideoFragment(241)), "Invalid UDP size accepted");
 
   // Bind the original control destination before sending; no real bridge receives this test.
   Receiver control(11451);
@@ -319,9 +343,9 @@ void test_streamer(const std::filesystem::path & output)
   auto stats = streamer.stats();
   require(stats.errors == 0 && stats.encoded >= 10 && stats.last_frame_bytes > 0,
     "Streaming encode statistics invalid");
-  require(stats.send_fps > 0 && stats.send_fps <= 16 && stats.bandwidth_bytes_s > 0,
+  require(stats.send_fps > 0 && stats.send_fps <= config.fps + 1 && stats.bandwidth_bytes_s > 0,
     "Streaming FPS/bandwidth statistics invalid");
-  require(stats.submitted <= 35, "Submission exceeded target 15 FPS");
+  require(stats.submitted <= 1 + static_cast<uint64_t>(std::ceil(2.2 * config.fps)), "Submission exceeded target FPS");
 
   std::vector<CapturedFragment> packets;
   { std::lock_guard<std::mutex> lock(mutex); packets = captured; }
@@ -332,7 +356,10 @@ void test_streamer(const std::filesystem::path & output)
     io::VideoFragmentInfo info;
     require(io::parse_video_fragment(packets[i].data, info), "Streamer emitted invalid fragment");
     frames[info.frame.frame_id].push_back(packets[i].data);
-    packet_file.write(reinterpret_cast<const char *>(packets[i].data.data()), io::kVideoDataSize);
+    const uint16_t length = static_cast<uint16_t>(packets[i].data.size());
+    const uint8_t prefix[] = {static_cast<uint8_t>(length), static_cast<uint8_t>(length >> 8)};
+    packet_file.write(reinterpret_cast<const char *>(prefix), sizeof(prefix));
+    packet_file.write(reinterpret_cast<const char *>(packets[i].data.data()), packets[i].data.size());
   }
   Decoder decoder;
   int pictures = 0;
@@ -346,7 +373,7 @@ void test_streamer(const std::filesystem::path & output)
       io::VideoFragmentInfo info;
       require(io::parse_video_fragment(fragment, info), "Reassembly parse failed");
       std::copy_n(fragment.data() + io::kVideoHeaderSize, info.payload_size,
-        encoded.data() + info.index * io::kVideoPayloadSize);
+        encoded.data() + info.offset);
     }
     stream.write(reinterpret_cast<const char *>(encoded.data()), encoded.size());
     for (const auto & image : decoder.feed(encoded)) {
@@ -423,7 +450,7 @@ void test_stream_recovery()
     require(io::parse_video_fragment(fragment, info), "Recovery packet parse");
     if (info.frame.frame_id != first.frame.frame_id) continue;
     std::copy_n(fragment.data() + io::kVideoHeaderSize, info.payload_size,
-      bytes.data() + info.index * io::kVideoPayloadSize);
+      bytes.data() + info.offset);
     ++count;
   }
   require(count == first.count, "Recovered frame incomplete");

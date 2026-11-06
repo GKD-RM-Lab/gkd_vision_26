@@ -36,6 +36,8 @@ VideoStreamConfig VideoStreamConfig::load(const std::string & path)
   result.queue_capacity = static_cast<size_t>(capacity);
   result.gop = node["gop"].as<int>(result.gop);
   result.packet_hz = node["packet_hz"].as<int>(result.packet_hz);
+  result.video_block_max_bytes = node["video_block_max_bytes"].as<int>(result.video_block_max_bytes);
+  result.other_info_reserved_bytes = node["other_info_reserved_bytes"].as<int>(result.other_info_reserved_bytes);
   result.max_frame_age_ms = node["max_frame_age_ms"].as<int>(result.max_frame_age_ms);
   result.stats_interval_s = node["stats_interval_s"].as<double>(result.stats_interval_s);
   const int port = node["udp_port"].as<int>(result.udp_port);
@@ -50,13 +52,16 @@ void VideoStreamConfig::validate() const
   if (width < 16 || height < 16 || width > 1920 || height > 1080 || width % 2 || height % 2 ||
       fps < 1 || fps > 60 || bitrate < 1000 || bitrate > 1000000 || queue_capacity < 1 ||
       queue_capacity > 8 || gop < 1 || gop > 600 || packet_hz < 1 || packet_hz > 50 ||
+      video_block_max_bytes <= static_cast<int>(kVideoHeaderSize) ||
+      video_block_max_bytes > static_cast<int>(kVideoDataSize) || other_info_reserved_bytes < 60 ||
+      other_info_reserved_bytes > 263 || video_block_max_bytes + other_info_reserved_bytes > 300 ||
       max_frame_age_ms < 20 || max_frame_age_ms > 2000 ||
       !std::isfinite(stats_interval_s) || stats_interval_s < 0.1 || stats_interval_s > 3600 ||
       udp_port == 0 || udp_port == 11451 || udp_port == 11452 || udp_port == 11453) {
     throw std::invalid_argument("Invalid video configuration (see VIDEO_STREAMING_CHANGES.md)");
   }
   // Even before padding, coding above this budget cannot fit in the official link.
-  if (bitrate > static_cast<int>(kVideoPayloadSize * packet_hz * 8)) {
+  if (bitrate > static_cast<int>((video_block_max_bytes - kVideoHeaderSize) * packet_hz * 8)) {
     throw std::invalid_argument("video.bitrate exceeds the configured 0x0310 payload budget");
   }
 }
@@ -125,7 +130,6 @@ bool VideoStreamer::submit(const cv::Mat & image, Clock::time_point capture_time
       std::chrono::duration_cast<std::chrono::system_clock::duration>(now - frame.captured);
     frame.timestamp_us =
       std::chrono::duration_cast<std::chrono::microseconds>(unix_capture).count();
-    frame.id = next_frame_id_++;
     while (queue_.size() >= config_.queue_capacity) {
       queue_.pop_front();
       ++queue_drops_;
@@ -287,12 +291,12 @@ void VideoStreamer::run() noexcept
         stats_.last_frame_bytes = encoded.bytes.size();
       }
       VideoFrameInfo info;
-      info.frame_id = pending.id;
+      info.frame_id = next_frame_id_++;  // Only encoded frames consume reference-chain IDs.
       info.timestamp_us = pending.timestamp_us;
       info.width = static_cast<uint16_t>(config_.width);
       info.height = static_cast<uint16_t>(config_.height);
       info.keyframe = encoded.keyframe;
-      const auto fragments = fragment_video(encoded.bytes, info);
+      const auto fragments = fragment_video(encoded.bytes, info, config_.video_block_max_bytes);
       bool sent = true;
       // Reject a frame that cannot finish before its deadline, rather than queueing stale fragments.
       const auto first_slot = std::max(Clock::now(), next_packet);

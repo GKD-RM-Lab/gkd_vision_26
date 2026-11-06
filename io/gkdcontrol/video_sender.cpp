@@ -29,19 +29,20 @@ VideoSender::~VideoSender()
 
 bool VideoSender::try_send(const VideoFragment & fragment) const noexcept
 {
-  if (socket_ < 0 || control_send_active()) return false;
+  if (fragment.size() <= kVideoHeaderSize || fragment.size() > kVideoDataSize ||
+      socket_ < 0 || control_send_active()) return false;
   // Local bridge envelope (not the official UART frame): type, version, command, data length.
   std::array<uint8_t, 6 + kVideoDataSize> packet{};
   packet[0] = 0x6B;
-  packet[1] = 1;
+  packet[1] = kVideoVersion;
   packet[2] = static_cast<uint8_t>(kVideoCommand);
   packet[3] = static_cast<uint8_t>(kVideoCommand >> 8);
-  packet[4] = static_cast<uint8_t>(kVideoDataSize);
-  packet[5] = static_cast<uint8_t>(kVideoDataSize >> 8);
+  packet[4] = static_cast<uint8_t>(fragment.size());
+  packet[5] = static_cast<uint8_t>(fragment.size() >> 8);
   std::copy(fragment.begin(), fragment.end(), packet.begin() + 6);
   const auto written = sendto(
-    socket_, packet.data(), packet.size(), MSG_DONTWAIT,
+    socket_, packet.data(), 6 + fragment.size(), MSG_DONTWAIT,
     reinterpret_cast<const sockaddr *>(&destination_), sizeof(destination_));
-  return written == static_cast<ssize_t>(packet.size());
+  return written == static_cast<ssize_t>(6 + fragment.size());
 }
 }  // namespace io

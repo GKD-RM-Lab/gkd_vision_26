@@ -157,7 +157,7 @@ cmake --build build --target gkdsentry_video_debug -j4
 ```
 
 在 `configs/gkdsentry.yaml` 中将 `video.enabled` 设为 `true` 开启传输，默认关闭。
-输出为完整自瞄绘制画面缩放后的 256×192 H.265，目标 15 FPS；桥接/电控需适配独立视频消息，
+输出为完整自瞄绘制画面缩放后的 256×192 H.265，目标 10 FPS、32000 bit/s；电控通过 MQTT 3.1.1 转发可变长视频块，
 协议、修改清单与本地验证步骤见 [VIDEO_STREAMING_CHANGES.md](VIDEO_STREAMING_CHANGES.md)。
 
 当前仓库不再从配置文件读取敌方颜色。保留的 GKD 链路都会通过 `io/gkdcontrol` 从电控侧接收运行时姿态和敌方颜色。

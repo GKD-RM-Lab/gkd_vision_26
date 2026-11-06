@@ -21,11 +21,13 @@ struct VideoStreamConfig
   bool enabled = false;
   int width = 256;
   int height = 192;
-  int fps = 15;
-  int bitrate = 48000;  // bits/s, leave headroom for metadata and packet padding.
+  int fps = 10;
+  int bitrate = 32000;  // bits/s; packet overhead and keyframes also consume the link.
   size_t queue_capacity = 1;
-  int gop = 15;
-  int packet_hz = 50;  // Official 0x0310 maximum, never exceed 50.
+  int gop = 10;
+  int packet_hz = 40;  // Official 0x0310 maximum, never exceed 50.
+  int video_block_max_bytes = 240;  // 36 B header + up to 204 B HEVC, may be reduced.
+  int other_info_reserved_bytes = 60;
   int max_frame_age_ms = 500;
   double stats_interval_s = 2.0;
   uint16_t udp_port = 11454;  // Existing control bridge remains on 11451.
@@ -75,7 +77,6 @@ private:
     cv::Mat image;
     std::chrono::steady_clock::time_point captured;
     uint64_t timestamp_us;
-    uint32_t id;
   };
 
   VideoStreamConfig config_;

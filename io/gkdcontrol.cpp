@@ -29,6 +29,19 @@ GKDControl::GKDControl(const std::string & config_path)
   tools::logger()->info("[GKDControl] Bullet speed set to {:.2f} m/s from config.", bullet_speed);
 
   initialize_udp_transmission();
+  // The control transport and its packet layout remain unchanged. Video is opt-in
+  // on a separate bridge port so an old bridge cannot mistake it for an aim command.
+  if (yaml["video"]) {
+    try {
+      const int port = yaml["video"]["udp_port"].as<int>(11454);
+      if (port < 1 || port > 65535 || port == 11451 || port == 11452 || port == 11453) {
+        throw std::invalid_argument("video.udp_port conflicts with control or is out of range");
+      }
+      video_sender_ = std::make_unique<VideoSender>(static_cast<uint16_t>(port));
+    } catch (const std::exception & error) {
+      tools::logger()->warn("[GKDControl] Video transport unavailable: {}", error.what());
+    }
+  }
   initialize_udp_reception();
 
   tools::logger()->info("[GKDControl] Waiting for IMU samples...");
@@ -91,6 +104,11 @@ void GKDControl::send(Command command) const
   }
   
   send_control(command.yaw, command.pitch, command.shoot);
+}
+
+bool GKDControl::try_send_video(const VideoFragment & fragment) const noexcept
+{
+  return video_sender_ && video_sender_->try_send(fragment);
 }
 
 void GKDControl::initialize_udp_reception()

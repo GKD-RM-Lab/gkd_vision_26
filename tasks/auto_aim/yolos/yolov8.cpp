@@ -269,7 +269,7 @@ cv::Mat YOLOV8::get_pattern(const cv::Mat & bgr_img, const Armor & armor) const
 void YOLOV8::save(const Armor & armor) const
 {
   auto file_name = fmt::format("{:%Y-%m-%d_%H-%M-%S}", std::chrono::system_clock::now());
-  auto img_path = fmt::format("{}/{}_{}.jpg", save_path_, armor.name, file_name);
+  auto img_path = fmt::format("{}/{}_{}.jpg", save_path_, static_cast<int>(armor.name), file_name);
   cv::imwrite(img_path, armor.pattern);
 }
 

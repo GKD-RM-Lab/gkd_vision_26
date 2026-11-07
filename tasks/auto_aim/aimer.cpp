@@ -30,6 +30,12 @@ Aimer::Aimer(const std::string & config_path)
   }
 }
 
+void Aimer::reset_tracking()
+{
+  lock_id_ = -1;
+  debug_aim_point.valid = false;
+}
+
 io::Command Aimer::aim(
   std::list<Target> targets, std::chrono::steady_clock::time_point timestamp, double bullet_speed,
   bool to_now)

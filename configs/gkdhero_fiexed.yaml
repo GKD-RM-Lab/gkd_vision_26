@@ -1,0 +1,129 @@
+#####-----神经网络参数-----#####
+yolo_name: yolov8
+classify_model: assets/tiny_resnet.onnx
+yolo11_model_path: assets/yolo11.xml
+yolov8_model_path: assets/yolov8.xml
+yolov5_model_path: assets/yolov5.xml
+device: CPU
+min_confidence: 0.7
+use_traditional: true
+
+#####-----ROI-----#####
+roi:
+  x: 420
+  y: 50
+  width: 600
+  height: 600
+
+use_roi: false
+
+#####-----传统方法参数-----#####
+threshold: 150
+max_angle_error: 45 # degree
+min_lightbar_ratio: 1.5
+max_lightbar_ratio: 20
+min_lightbar_length: 8
+min_armor_ratio: 1
+max_armor_ratio: 5
+max_side_ratio: 1.5
+max_rectangular_error: 25 # degree
+
+#####-----tracker参数-----#####
+min_detect_count: 5
+max_temp_lost_count: 15
+outpost_max_temp_lost_count: 75
+process_v1: 120
+process_v2: 100
+
+# 仅 gkdhero_fiexed_debug 接入；默认颜色模式始终为 auto，不保存运行时修改。
+runtime_params:
+  enabled: true
+  request_port: 11455 # 电控 -> 视觉，绑定 127.0.0.1；独立于控制/视频
+  status_port: 11456 # 视觉 -> 电控，状态和生效反馈发往 127.0.0.1
+  queue_capacity: 8 # 请求/反馈队列分别限长；主线程每帧最多取一条请求
+  max_request_ttl_ms: 2000 # 请求必须携带本次进程 session_id、版本和绝对过期时间
+  max_queue_age_ms: 500
+  status_hz: 1.0 # 仅发本机UDP给电控，用于会话/版本协调；不上传独立MQTT状态包
+  process_min_exclusive: 0.0
+  process_max_inclusive: 1000000.0 # 数值输入保护，不代表经过实测的调参范围
+  color_override_enabled: true # 完成选手端四键流程后，再在启动前明确开启
+  color_confirmation_hold_ms: 500 # 仅检查终端声明；视觉端无法验证真实物理按键
+  show_overlay: true # 左上角显示CMD序号/结果、实际v1/v2及颜色，随原图编码返回
+
+#####-----aimer参数-----#####
+yaw_offset: -0.7 # degree
+pitch_offset: 0 # degree
+comming_angle: 30 # degree
+leaving_angle: 30 # degree
+decision_speed: 2 # rad/s
+min_spin_speed: 2 # rad/s
+high_speed_delay_time: 0.03 # s
+low_speed_delay_time: 0.0 # s
+
+#####-----原shooter兼容参数-----#####
+bullet_speed: 11.5 # m/s
+first_tolerance: 8 # degree
+second_tolerance: 8 # degree
+judge_distance: 1 # m
+auto_fire: true
+
+#####-----中心yaw及旋转装甲开火参数-----#####
+fixed_shooter:
+  first_tolerance: 8 # 近距离云台中心跟踪容差，degree
+  second_tolerance: 8 # 远距离云台中心跟踪容差，degree
+  judge_distance: 1 # 远近距离分界，m
+  small_armor_width: 0.135 # 小装甲板宽度，m
+  big_armor_width: 0.230 # 大装甲板宽度，m
+  max_face_angle: 90 # 大于该角度认为装甲板位于车体背面，degree
+
+camera_name: "hikrobot"
+exposure_ms: 8
+gain: 17.5
+vid_pid: "2bdf:0001"
+
+#  1  0  0
+#  0  1  0
+#  0  0  1
+R_gimbal2imubody: [1, 0, 0, 0, 1, 0, 0, 0, 1]
+
+# 重投影误差: 0.7266px
+camera_matrix: [1261.2391820583621, 0, 329.2893575394387, 0, 1260.0041684786017, 233.03517595992329, 0, 0, 1]
+distort_coeffs: [-0.052165765534110793, -0.53977455154024767, 0.0002377535279643977, 0.0021425223378338698, 0]
+
+# 相机同理想情况的偏角: yaw-1.61 pitch-0.82 roll-0.61 degree
+R_camera2gimbal: [0, 0, 1, -1, 0, 0, 0, -1, 0]
+t_camera2gimbal: [0.048817325957791413, 0, 0.048000000880185793]
+
+#####-----手眼测试参数-----#####
+handeye_test:
+  height: 0.6
+  grid_num: 6
+  grid_size: 0.1
+  delay: 0
+
+#####-----planner-----#####
+fire_thresh: 0.0015
+
+max_yaw_acc: 0.5
+Q_yaw: [1, 1]
+R_yaw: [1e8]
+
+max_pitch_acc: 100
+Q_pitch: [9e6, 0]
+R_pitch: [1]
+
+#####-----绘制后视频传输（视觉端 -> 本机电控 UDP -> MQTT Broker）-----#####
+video:
+  enabled: true # 可在运行期间修改此项；工作线程约每秒重读一次
+  width: 256
+  height: 192
+  fps: 10
+  bitrate: 32000 # H.265 bit/s；实际完整发送帧率受 40 包/s 和画面复杂度限制
+  queue_capacity: 1 # 满时覆盖最旧帧，工作线程总是取最新帧
+  gop: 10 # 周期性 IDR；主动丢弃已编码帧后强制下一帧为 IDR
+  packet_hz: 40 # 视频UDP片速率；电控仅上传VS视频，片速率仍不超过50Hz
+  max_frame_age_ms: 500 # 从相机采集时刻计算；超时丢帧，不累积延迟
+  stats_interval_s: 2.0
+  video_block_max_bytes: 240 # 含 36 字节片头，最多 204 字节 H.265；可降低
+  other_info_reserved_bytes: 60 # 300 字节 data 预算内预留；不发送填充
+  udp_port: 11454 # 独立视频消息端口，电控转发 MQTT；原控制端口 11451 不变

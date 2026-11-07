@@ -5,11 +5,13 @@
 #include <chrono>
 #include <list>
 #include <string>
+#include <tuple>
+#include <vector>
 
 #include "armor.hpp"
 #include "solver.hpp"
 #include "target.hpp"
-#include "tasks/omniperception/perceptron.hpp"
+#include "tasks/omniperception/detection.hpp"
 #include "tools/thread_safe_queue.hpp"
 
 namespace auto_aim
@@ -20,6 +22,9 @@ public:
   Tracker(const std::string & config_path, Solver & solver, Color & enemy_color);
 
   std::string state() const;
+
+  void set_process_noise(double process_v1, double process_v2);
+  void reset();
 
   std::list<Target> track(
     std::list<Armor> & armors, std::chrono::steady_clock::time_point t,

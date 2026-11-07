@@ -24,6 +24,7 @@ class Aimer
 public:
   AimPoint debug_aim_point;
   explicit Aimer(const std::string & config_path);
+  void reset_tracking();
   io::Command aim(
     std::list<Target> targets, std::chrono::steady_clock::time_point timestamp, double bullet_speed,
     bool to_now = true);

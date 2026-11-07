@@ -33,6 +33,7 @@ add_library(io STATIC
     gkdcontrol.cpp
     gkdcontrol/send_control.cpp
     gkdcontrol/socket_interface.cpp
+    gkdcontrol/video_sender.cpp
 )
 
 # hikrobot
@@ -43,7 +44,7 @@ sp_vision_add_vendor_link_dir(io "${CMAKE_CURRENT_SOURCE_DIR}/hikrobot")
 target_include_directories(io PUBLIC mindvision/include)
 sp_vision_add_vendor_link_dir(io "${CMAKE_CURRENT_SOURCE_DIR}/mindvision")
 
-target_link_libraries(io MvCameraControl MVSDK usb-1.0 yaml-cpp serial)
+target_link_libraries(io MvCameraControl MVSDK usb-1.0 yaml-cpp serial spdlog::spdlog)
 
 ################## 检查 ROS 环境 ##################
 find_package(ament_cmake QUIET)

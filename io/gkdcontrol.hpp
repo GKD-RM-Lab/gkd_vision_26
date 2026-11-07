@@ -6,6 +6,7 @@
 #include <chrono>
 #include <cmath>
 #include <functional>
+#include <memory>
 #include <string>
 #include <vector>
 #include <string_view>
@@ -15,6 +16,7 @@
 #include "tools/logger.hpp"
 #include "tools/thread_safe_queue.hpp"
 #include "io/gkdcontrol/send_control.hpp"
+#include "io/gkdcontrol/video_sender.hpp"
 #include "tasks/auto_aim/armor.hpp"
 
 namespace io
@@ -54,6 +56,7 @@ public:
   auto_aim::Color color_at(std::chrono::steady_clock::time_point timestamp);
 
   void send(Command command) const;
+  bool try_send_video(const VideoFragment & fragment) const noexcept;
 
 private:
   struct IMUData
@@ -78,6 +81,7 @@ private:
   Colors enemy_color_behind_;
 
   IO::Server_socket_interface socket_interface_;
+  std::unique_ptr<VideoSender> video_sender_;
 
   void initialize_udp_reception();
   void initialize_udp_transmission();

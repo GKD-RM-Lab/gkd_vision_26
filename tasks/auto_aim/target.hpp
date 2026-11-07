@@ -35,6 +35,9 @@ public:
   void predict(double dt);
   void update(const Armor & armor);
 
+  // Change future Q construction without resetting x, P or the observation model.
+  void set_process_noise(double process_v1, double process_v2);
+
   Eigen::VectorXd ekf_x() const;
   const tools::ExtendedKalmanFilter & ekf() const;
   std::vector<Eigen::Vector4d> armor_xyza_list() const;

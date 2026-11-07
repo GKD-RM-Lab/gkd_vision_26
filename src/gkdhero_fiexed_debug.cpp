@@ -1,15 +1,18 @@
 #include <fmt/core.h>
 
 #include <chrono>
+#include <optional>
 #include <opencv2/opencv.hpp>
 
 #include "io/camera.hpp"
 #include "io/gkdcontrol.hpp"
+#include "io/gkdcontrol/parameter_channel.hpp"
 #include "io/video/video_streamer.hpp"
 #include "tasks/auto_aim/aimer.hpp"
 #include "tasks/auto_aim/center_aimer.hpp"
 #include "tasks/auto_aim/center_shooter.hpp"
 #include "tasks/auto_aim/solver.hpp"
+#include "tasks/auto_aim/runtime_params.hpp"
 #include "tasks/auto_aim/tracker.hpp"
 #include "tasks/auto_aim/yolo.hpp"
 #include "tools/exiter.hpp"
@@ -44,6 +47,8 @@ int main(int argc, char * argv[])
   auto_aim::Solver solver(config_path);
   auto_aim::Color enemy_color = gkdcontrol.color_at(steady_clock::now());
   auto_aim::Tracker tracker(config_path, solver, enemy_color);
+  auto_aim::RuntimeParams runtime_params(config_path, enemy_color);
+  io::ParameterChannel parameter_channel(runtime_params.config(), runtime_params.state());
   auto_aim::Aimer aimer(config_path);
   auto_aim::CenterAimer center_aimer(config_path);
   auto_aim::CenterShooter center_shooter(config_path);
@@ -58,7 +63,30 @@ int main(int argc, char * argv[])
     camera.read(img, t);
     if (img.empty()) continue;
     q = gkdcontrol.imu_at(t - 1ms);
-    enemy_color = gkdcontrol.color_at(t - 1ms);
+    const auto automatic_enemy = gkdcontrol.color_at(t - 1ms);
+    std::optional<auto_aim::ParameterReply> parameter_reply;
+    if (runtime_params.config().enabled) {
+      const auto capture_us = duration_cast<microseconds>(
+        system_clock::now().time_since_epoch()).count() -
+        duration_cast<microseconds>(steady_clock::now() - t).count();
+      runtime_params.begin_frame(automatic_enemy, static_cast<uint64_t>(frame_count), capture_us);
+      auto_aim::ParameterRequest request;
+      // At most one request per frame; no network I/O, JSON or waiting in this thread.
+      if (parameter_channel.try_receive(request)) {
+        parameter_reply = runtime_params.apply(request,
+          duration_cast<milliseconds>(system_clock::now().time_since_epoch()).count());
+      }
+      const auto & parameters = runtime_params.state();
+      tracker.set_process_noise(parameters.process_v1, parameters.process_v2);
+      if (enemy_color != parameters.effective_enemy) {
+        tracker.reset();
+        aimer.reset_tracking();
+        center_aimer.reset_tracking();
+      }
+      enemy_color = parameters.effective_enemy;
+    } else {
+      enemy_color = automatic_enemy;
+    }
 
     solver.set_R_gimbal2world(q);
 
@@ -66,6 +94,7 @@ int main(int argc, char * argv[])
     auto armors = detector.detect(img, frame_count);
     const auto tracker_start = steady_clock::now();
     auto targets = tracker.track(armors, t);
+    runtime_params.set_tracking_state(tracker.state());
     const auto aimer_start = steady_clock::now();
 
     const auto armor_command = aimer.aim(targets, t, gkdcontrol.bullet_speed);
@@ -78,7 +107,7 @@ int main(int argc, char * argv[])
     const auto finish = steady_clock::now();
     const auto total_ms = tools::delta_time(finish, loop_start) * 1e3;
     const auto fps = total_ms > 0.0 ? 1000.0 / total_ms : 0.0;
-
+/*
     tools::draw_text(
       img,
       fmt::format(
@@ -91,7 +120,7 @@ int main(int argc, char * argv[])
         "gimbal yaw {:.2f}, center err {:.2f}, armor err/tol {:.2f}/{:.2f}", ypr[0] * 57.3,
         fire.center_error * 57.3, fire.armor_error * 57.3, fire.armor_tolerance * 57.3),
       {10, 70}, {255, 255, 255});
-
+*/
     if (!targets.empty()) {
       const auto & target = targets.front();
       const auto state = target.ekf_x();
@@ -118,6 +147,8 @@ int main(int argc, char * argv[])
         frame_count, state[0], state[2], state[4], state[6], fire.flight_time, fire.shoot);
     }
 
+    runtime_params.draw_overlay(img);
+
     // Retain the full-size annotated buffer before the display-only 0.5x resize.
     // Only a shallow reference here; copy into the video queue after sending control.
     const cv::Mat video_frame = video_streamer.enabled() ? img : cv::Mat{};
@@ -133,6 +164,12 @@ int main(int argc, char * argv[])
     cv::imshow("gkdhero_fiexed", img);
     cv::waitKey(1);
     gkdcontrol.send(command);
+    // Feedback is queued only after the original control send and actual application.
+    parameter_channel.try_publish(runtime_params.state());
+    if (parameter_reply) {
+      parameter_reply->state = runtime_params.state();
+      parameter_channel.try_reply(*parameter_reply);
+    }
     video_streamer.submit(video_frame, t);
     frame_count++;
   }

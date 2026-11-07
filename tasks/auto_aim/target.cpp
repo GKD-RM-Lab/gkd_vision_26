@@ -1,6 +1,8 @@
 #include "target.hpp"
 
+#include <cmath>
 #include <numeric>
+#include <stdexcept>
 
 #include "tools/logger.hpp"
 #include "tools/math_tools.hpp"
@@ -66,6 +68,14 @@ Target::Target(double x, double vyaw, double radius, double h, double process_v1
   };
 
   ekf_ = tools::ExtendedKalmanFilter(x0, P0, x_add);  //初始化滤波器（预测量、预测量协方差）
+}
+
+void Target::set_process_noise(double process_v1, double process_v2)
+{
+  if (!std::isfinite(process_v1) || !std::isfinite(process_v2) || process_v1 <= 0 || process_v2 <= 0)
+    throw std::invalid_argument("process_v1/process_v2 must be finite and positive");
+  process_v1_ = process_v1;
+  process_v2_ = process_v2;
 }
 
 void Target::predict(std::chrono::steady_clock::time_point t)

@@ -22,6 +22,8 @@ CenterAimer::CenterAimer(const std::string & config_path)
   decision_speed_ = yaml["decision_speed"].as<double>();
 }
 
+void CenterAimer::reset_tracking() { last_pitch_.reset(); }
+
 io::Command CenterAimer::aim(
   const std::list<Target> & targets, std::chrono::steady_clock::time_point timestamp,
   const io::Command & armor_command, double bullet_speed)

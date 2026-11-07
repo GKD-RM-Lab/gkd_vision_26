@@ -30,6 +30,24 @@ Tracker::Tracker(const std::string & config_path, Solver & solver, Color & enemy
 
 std::string Tracker::state() const { return state_; }
 
+void Tracker::set_process_noise(double process_v1, double process_v2)
+{
+  target_.set_process_noise(process_v1, process_v2);
+  process_v1_ = process_v1;
+  process_v2_ = process_v2;
+}
+
+void Tracker::reset()
+{
+  target_ = Target{};
+  target_.set_process_noise(process_v1_, process_v2_);
+  state_ = pre_state_ = "lost";
+  detect_count_ = temp_lost_count_ = 0;
+  max_temp_lost_count_ = normal_temp_lost_count_;
+  last_timestamp_ = std::chrono::steady_clock::now();
+  omni_target_priority_ = ArmorPriority::fifth;
+}
+
 std::list<Target> Tracker::track(
   std::list<Armor> & armors, std::chrono::steady_clock::time_point t, bool use_enemy_color)
 {

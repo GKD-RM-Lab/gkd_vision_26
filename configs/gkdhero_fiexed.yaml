@@ -35,6 +35,21 @@ outpost_max_temp_lost_count: 75
 process_v1: 120
 process_v2: 100
 
+# 仅 gkdhero_fiexed_debug 接入；默认颜色模式始终为 auto，不保存运行时修改。
+runtime_params:
+  enabled: true
+  request_port: 11455 # 电控 -> 视觉，绑定 127.0.0.1；独立于控制/视频
+  status_port: 11456 # 视觉 -> 电控，状态和生效反馈发往 127.0.0.1
+  queue_capacity: 8 # 请求/反馈队列分别限长；主线程每帧最多取一条请求
+  max_request_ttl_ms: 2000 # 请求必须携带本次进程 session_id、版本和绝对过期时间
+  max_queue_age_ms: 500
+  status_hz: 1.0 # 仅发本机UDP给电控，用于会话/版本协调；不上传独立MQTT状态包
+  process_min_exclusive: 0.0
+  process_max_inclusive: 1000000.0 # 数值输入保护，不代表经过实测的调参范围
+  color_override_enabled: true # 完成选手端四键流程后，再在启动前明确开启
+  color_confirmation_hold_ms: 500 # 仅检查终端声明；视觉端无法验证真实物理按键
+  show_overlay: true # 左上角显示CMD序号/结果、实际v1/v2及颜色，随原图编码返回
+
 #####-----aimer参数-----#####
 yaw_offset: -0.7 # degree
 pitch_offset: 0 # degree
@@ -99,14 +114,14 @@ R_pitch: [1]
 
 #####-----绘制后视频传输（视觉端 -> 本机电控 UDP -> MQTT Broker）-----#####
 video:
-  enabled: false # 可在运行期间修改此项；工作线程约每秒重读一次
+  enabled: true # 可在运行期间修改此项；工作线程约每秒重读一次
   width: 256
   height: 192
   fps: 10
   bitrate: 32000 # H.265 bit/s；实际完整发送帧率受 40 包/s 和画面复杂度限制
   queue_capacity: 1 # 满时覆盖最旧帧，工作线程总是取最新帧
   gop: 10 # 周期性 IDR；主动丢弃已编码帧后强制下一帧为 IDR
-  packet_hz: 40 # 官方 0x0310 上限，禁止超过 50
+  packet_hz: 40 # 视频UDP片速率；电控仅上传VS视频，片速率仍不超过50Hz
   max_frame_age_ms: 500 # 从相机采集时刻计算；超时丢帧，不累积延迟
   stats_interval_s: 2.0
   video_block_max_bytes: 240 # 含 36 字节片头，最多 204 字节 H.265；可降低

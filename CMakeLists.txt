@@ -16,8 +16,25 @@ option(SP_VISION_BUILD_AUTO_BUFF "Build the auto_buff module" OFF)
 option(SP_VISION_BUILD_OMNIPERCEPTION "Build the omniperception module" OFF)
 option(SP_VISION_ENABLE_VIDEO "Enable FFmpeg/libx265 H.265 video streaming" ON)
 option(SP_VISION_VIDEO_TESTS_ONLY "Build video module/tests without camera SDK or OpenVINO" OFF)
+option(SP_VISION_RUNTIME_TESTS_ONLY "Build runtime parameter tests without camera SDK or OpenVINO" OFF)
+option(SP_VISION_BUILD_RUNTIME_TESTS "Build runtime parameter/UDP/tracker tests" ON)
 
 enable_testing()
+
+if(SP_VISION_RUNTIME_TESTS_ONLY)
+  find_package(OpenCV REQUIRED)
+  find_package(Eigen3 REQUIRED)
+  find_package(fmt REQUIRED)
+  find_package(spdlog REQUIRED)
+  find_package(yaml-cpp REQUIRED)
+  find_package(nlohmann_json REQUIRED)
+  if(TARGET yaml-cpp::yaml-cpp AND NOT TARGET yaml-cpp)
+    add_library(yaml-cpp ALIAS yaml-cpp::yaml-cpp)
+  endif()
+  add_subdirectory(io/gkdcontrol)
+  add_subdirectory(tests/runtime_params)
+  return()
+endif()
 
 # Local image encoding/fragmentation tests do not require a camera, IMU, model or bridge.
 if(SP_VISION_VIDEO_TESTS_ONLY)
@@ -69,6 +86,7 @@ include_directories(${PROJECT_SOURCE_DIR})
 
 add_subdirectory(tools)
 add_subdirectory(io/video)
+add_subdirectory(io/gkdcontrol)
 add_subdirectory(io)
 add_subdirectory(tasks/auto_aim)
 if(SP_VISION_BUILD_AUTO_BUFF)
@@ -96,6 +114,7 @@ sp_vision_add_binary(
   tools
   io
   video_streaming
+  runtime_parameter_support
 )
 sp_vision_add_binary(gkdinfantry src/gkdinfantry.cpp ${OpenCV_LIBS} fmt::fmt auto_aim tools io)
 sp_vision_add_binary(gkdsentry src/gkdsentry.cpp ${OpenCV_LIBS} fmt::fmt auto_aim tools io)
@@ -169,6 +188,9 @@ sp_vision_add_binary(split_video calibration/split_video.cpp ${OpenCV_LIBS} fmt:
 sp_vision_add_binary(record calibration/record.cpp ${OpenCV_LIBS} fmt::fmt tools io)
 
 ################## tests ##################
+if(SP_VISION_BUILD_RUNTIME_TESTS)
+  add_subdirectory(tests/runtime_params)
+endif()
 sp_vision_add_binary(
   camera_detect_test
   tests/camera_detect_test.cpp

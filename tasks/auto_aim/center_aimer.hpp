@@ -16,6 +16,7 @@ class CenterAimer
 {
 public:
   explicit CenterAimer(const std::string & config_path);
+  void reset_tracking();
 
   io::Command aim(
     const std::list<Target> & targets, std::chrono::steady_clock::time_point timestamp,
